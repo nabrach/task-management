@@ -2,6 +2,7 @@ import { CanActivateFn, Router, ActivatedRouteSnapshot, RouterStateSnapshot } fr
 import { inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map, take, filter } from 'rxjs/operators';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { AuthService } from '../services/auth.service';
 
 export const AuthGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<boolean> => {
@@ -22,22 +23,13 @@ export const AuthGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: R
   if (authService.isLoggedIn()) {
     console.log('AuthGuard: token exists but no user, waiting for auth status...');
     
-    // Wait for a non-null user value, then check
-    return authService.currentUser$.pipe(
-      // Skip null values and wait for actual user data
-      filter((user: any) => user !== null),
+    // Use toObservable to convert the currentUser signal to an observable
+    return toObservable(authService.currentUser).pipe(
+      filter(user => user !== null),
       take(1),
       map(user => {
         console.log('AuthGuard: user state updated, user exists:', !!user);
-        if (user) {
-          console.log('AuthGuard: allowing access to dashboard');
-          return true;
-        } else {
-          console.log('AuthGuard: no user after waiting, redirecting to login');
-          // If still no user after waiting, redirect to login
-          router.navigate(['/login']);
-          return false;
-        }
+        return true;
       })
     );
   }

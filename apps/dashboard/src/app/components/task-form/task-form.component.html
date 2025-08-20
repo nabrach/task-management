@@ -99,6 +99,17 @@
       </label>
     </div>
 
+    <!-- Debug info (remove in production) -->
+    <div class="text-xs text-gray-500 mb-4" *ngIf="!taskForm.valid">
+      <p>Form is invalid. Issues:</p>
+      <ul>
+        <li *ngIf="taskForm.get('title')?.invalid">Title: {{ taskForm.get('title')?.errors | json }}</li>
+        <li *ngIf="taskForm.get('category')?.invalid">Category: {{ taskForm.get('category')?.errors | json }}</li>
+        <li *ngIf="taskForm.get('status')?.invalid">Status: {{ taskForm.get('status')?.errors | json }}</li>
+        <li *ngIf="taskForm.get('organizationId')?.invalid">Organization ID: {{ taskForm.get('organizationId')?.errors | json }}</li>
+      </ul>
+    </div>
+
     <div class="form-actions">
       <button type="button" (click)="onCancel()" class="btn btn-secondary">
         Cancel

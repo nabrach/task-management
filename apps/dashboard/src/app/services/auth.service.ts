@@ -57,9 +57,6 @@ export class AuthService {
   public currentUserRole = computed(() => this.currentUser()?.role);
   public currentUserOrganizationId = computed(() => this.currentUser()?.organizationId);
   
-  // Observable for backward compatibility (if needed)
-  public currentUser$ = this.currentUser.asReadonly();
-  
   private authInProgress = false;
 
   constructor(private http: HttpClient) {

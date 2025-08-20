@@ -34,9 +34,14 @@ export class DashboardComponent implements OnInit {
     private usersService: UsersService,
     private router: Router
   ) {
+    // Initialize computed values in constructor (injection context)
+    this.currentUser = this.authService.currentUser;
+    this.currentUserRole = computed(() => this.currentUser()?.role);
+    this.currentUserOrganizationId = computed(() => this.currentUser()?.organizationId);
+    
     // Effect to automatically load organization when user changes
     effect(() => {
-      const user = this.authService.currentUser();
+      const user = this.currentUser();
       if (user?.organizationId) {
         this.loadOrganization(user.organizationId);
       } else {
@@ -46,21 +51,18 @@ export class DashboardComponent implements OnInit {
   }
 
   ngOnInit() {
-    console.log('DashboardComponent: ngOnInit called');
-    
-    // Initialize computed values after constructor
-    this.currentUser = this.authService.currentUser;
-    this.currentUserRole = this.authService.currentUserRole;
-    this.currentUserOrganizationId = this.authService.currentUserOrganizationId;
-    
-    // Check if user is logged in
-    if (!this.authService.isLoggedIn()) {
-      console.log('User not logged in, redirecting to login');
-      this.router.navigate(['/login']);
-      return;
-    }
-    
-    console.log('DashboardComponent: User is logged in');
+    this.loadCurrentUser();
+    this.loadTasks();
+  }
+
+  private loadCurrentUser() {
+    // User is already loaded via signal, no need to subscribe
+    console.log('DashboardComponent: Current user loaded via signal');
+  }
+
+  private loadTasks() {
+    // This method is called by the tasks component, not needed here
+    console.log('DashboardComponent: Tasks loading handled by tasks component');
   }
 
   setActiveTab(tab: 'tasks' | 'audit-logs') {

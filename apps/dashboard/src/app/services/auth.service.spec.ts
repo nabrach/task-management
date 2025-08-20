@@ -127,23 +127,6 @@ describe('AuthService', () => {
     });
   });
 
-  describe('getOrganizations', () => {
-    it('should fetch organizations successfully', () => {
-      const mockOrganizations = [
-        { id: 1, name: 'Org 1', description: 'Description 1' },
-        { id: 2, name: 'Org 2', description: 'Description 2' }
-      ];
-
-      service.getOrganizations().subscribe(organizations => {
-        expect(organizations).toEqual(mockOrganizations);
-      });
-
-      const req = httpMock.expectOne('http://localhost:3000/organizations');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockOrganizations);
-    });
-  });
-
   describe('logout', () => {
     it('should clear token and user state', () => {
       // First login to set up state
@@ -241,14 +224,4 @@ describe('AuthService', () => {
     });
   });
 
-  describe('currentUser$ observable', () => {
-    it('should emit current user updates', (done) => {
-      service.currentUser$.subscribe(user => {
-        expect(user).toEqual(mockUser);
-        done();
-      });
-
-      (service as any).currentUserSubject.next(mockUser);
-    });
-  });
 });

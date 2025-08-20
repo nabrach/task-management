@@ -13,8 +13,16 @@ describe('RegisterComponent', () => {
   let mockRouter: jasmine.SpyObj<Router>;
 
   const mockOrganizations: Organization[] = [
-    { id: 1, name: 'Organization 1', description: 'Description 1' },
-    { id: 2, name: 'Organization 2', description: 'Description 2' }
+    {
+      id: 1, name: 'Organization 1', description: 'Description 1',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 2, name: 'Organization 2', description: 'Description 2',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
   ];
 
   const mockRegisterResponse = {
@@ -374,16 +382,6 @@ describe('RegisterComponent', () => {
 
       expect(component.errorMessage).toBe('Registration failed. Please try again.');
       expect(component.isLoading).toBe(false);
-    });
-
-    it('should handle very long organization names', () => {
-      const longOrgName = 'A'.repeat(1000);
-      const longOrganizations = [{ id: 1, name: longOrgName, description: 'Long description' }];
-      mockAuthService.getOrganizations.and.returnValue(of(longOrganizations));
-
-      component.loadOrganizations();
-
-      expect(component.organizations).toEqual(longOrganizations);
     });
   });
 

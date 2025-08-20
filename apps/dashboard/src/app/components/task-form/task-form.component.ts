@@ -52,30 +52,45 @@ export class TaskFormComponent implements OnInit, OnChanges {
     if (this.task) {
       // Edit mode - populate with existing task data
       console.log('TaskFormComponent: Populating form for edit mode');
-            this.taskForm.patchValue({
+      this.taskForm.patchValue({
         title: this.task.title,
-        description: this.task.description || undefined,
+        description: this.task.description || '',
         completed: this.task.completed || false,
         status: this.task.status || 'new',
         category: this.task.category || 'work',
         assignedTo: this.task.assignedTo || undefined,
-        organizationId: this.task.organizationId
+        organizationId: this.task.organizationId || (this.currentUser?.organizationId || 1)
       });
     } else if (this.currentUser) {
       // Create mode - set default values including current user's organization
       console.log('TaskFormComponent: Resetting form for create mode');
-            this.taskForm.reset({
+      const orgId = this.currentUser.organizationId || 1;
+      this.taskForm.reset({
         title: '',
-        description: undefined,
+        description: '',
         completed: false,
         status: 'new',
         category: 'work',
         assignedTo: undefined,
-        organizationId: this.currentUser.organizationId || 1
+        organizationId: orgId
+      });
+    } else {
+      // Fallback when no current user is available yet
+      console.log('TaskFormComponent: No current user available, using defaults');
+      this.taskForm.reset({
+        title: '',
+        description: '',
+        completed: false,
+        status: 'new',
+        category: 'work',
+        assignedTo: undefined,
+        organizationId: 1
       });
     }
     
     console.log('TaskFormComponent: Form values after reset:', this.taskForm.value);
+    console.log('TaskFormComponent: Form valid:', this.taskForm.valid);
+    console.log('TaskFormComponent: Form errors:', this.getFormErrors());
   }
 
   onSubmit() {
@@ -138,5 +153,17 @@ export class TaskFormComponent implements OnInit, OnChanges {
       return `${user.firstName} ${user.lastName} (${user.email})`;
     }
     return user.email || 'Unknown User';
+  }
+
+  // Helper method for debugging form errors
+  private getFormErrors(): any {
+    const formErrors: any = {};
+    Object.keys(this.taskForm.controls).forEach(key => {
+      const controlErrors = this.taskForm.get(key)?.errors;
+      if (controlErrors) {
+        formErrors[key] = controlErrors;
+      }
+    });
+    return formErrors;
   }
 }

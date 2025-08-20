@@ -9,8 +9,7 @@ import { UserRole } from '@my-workspace/data';
   selector: 'app-register',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './register.component.html',
-  styleUrls: ['./register.component.css']
+  templateUrl: './register.component.html'
 })
 export class RegisterComponent implements OnInit {
   userData: RegisterData = {

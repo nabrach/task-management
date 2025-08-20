@@ -1,7 +1,7 @@
 import { Component, OnInit, Output, AfterViewInit, ViewChild, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { Task, TaskWithUsers, CreateTaskDto, UpdateTaskDto, IUser, UserRole } from '@my-workspace/data';
 import { TasksService } from '../../services/tasks.service';
 import { AuthService } from '../../services/auth.service';
@@ -13,8 +13,7 @@ import { TaskAnalyticsComponent } from '../task-analytics/task-analytics.compone
   selector: 'app-tasks',
   standalone: true,
   imports: [CommonModule, FormsModule, DragDropModule, TaskFormComponent, TaskAnalyticsComponent],
-  templateUrl: './tasks.component.html',
-  styleUrls: ['./tasks.component.css']
+  templateUrl: './tasks.component.html'
 })
 export class TasksComponent implements OnInit, AfterViewInit {
   @ViewChild('taskForm') taskFormComponent!: TaskFormComponent;
@@ -95,22 +94,22 @@ export class TasksComponent implements OnInit, AfterViewInit {
     private authService: AuthService,
     private usersService: UsersService
   ) {
+    // Initialize computed values in constructor (injection context)
+    this.currentUser = this.authService.currentUser;
+    this.isOwner = computed(() => this.currentUser()?.role === UserRole.OWNER);
+    this.isAdmin = computed(() => this.currentUser()?.role === UserRole.ADMIN);
+    this.isViewer = computed(() => this.currentUser()?.role === UserRole.VIEWER);
+    
     // Effect to automatically load users when user changes
     effect(() => {
-      const user = this.currentUser?.();
-      if (user && (this.isOwner?.() || this.isAdmin?.())) {
+      const user = this.currentUser();
+      if (user && (this.isOwner() || this.isAdmin())) {
         this.loadUsers();
       }
     });
   }
 
   ngOnInit() {
-    // Initialize computed values after constructor
-    this.currentUser = this.authService.currentUser;
-    this.isOwner = computed(() => this.currentUser()?.role === UserRole.OWNER);
-    this.isAdmin = computed(() => this.currentUser()?.role === UserRole.ADMIN);
-    this.isViewer = computed(() => this.currentUser()?.role === UserRole.VIEWER);
-    
     this.loadCurrentUser();
     this.loadTasks();
   }
@@ -209,6 +208,28 @@ export class TasksComponent implements OnInit, AfterViewInit {
     }
   }
 
+  public getCategoryLabel(category: string): string {
+    switch (category) {
+      case 'work': return 'Work';
+      case 'personal': return 'Personal';
+      case 'other': return 'Other';
+      default: return 'Unknown';
+    }
+  }
+
+  public getCategoryClass(category: string): string {
+    switch (category) {
+      case 'work': return 'bg-blue-100 text-blue-800';
+      case 'personal': return 'bg-purple-100 text-purple-800';
+      case 'other': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  public trackByTaskId(index: number, task: TaskWithUsers): number {
+    return task.id;
+  }
+
   private filterTasksByUser(tasks: Task[]): Task[] {
     const user = this.currentUser();
     if (!user) return [];
@@ -251,20 +272,19 @@ export class TasksComponent implements OnInit, AfterViewInit {
     });
   }
 
-  onDrop(event: CdkDragDrop<Task[]>) {
+  onDrop(event: CdkDragDrop<TaskWithUsers[]>) {
+    console.log('Drop event:', event);
+    
     if (event.previousContainer === event.container) {
-      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+      // Same container - just reorder
+      console.log('Reordering within same container');
+      return;
     } else {
-      transferArrayItem(
-        event.previousContainer.data,
-        event.container.data,
-        event.previousIndex,
-        event.currentIndex
-      );
-      
-      // Update the task status based on the new container
-      const task = event.container.data[event.currentIndex];
+      // Different container - move task and update status
+      const task = event.previousContainer.data[event.previousIndex];
       const newStatus = this.getStatusFromContainer(event.container.id);
+      
+      console.log('Moving task:', task.id, 'to status:', newStatus);
       
       if (task && newStatus) {
         // If task is moved to Completed column, automatically mark it as completed
@@ -277,6 +297,14 @@ export class TasksComponent implements OnInit, AfterViewInit {
         this.updateTaskStatus(task.id, newStatus, updateData);
       }
     }
+  }
+
+  onDragEnter(event: any) {
+    console.log('Drag entered container:', event.container.id);
+  }
+
+  onDragExit(event: any) {
+    console.log('Drag exited container:', event.container.id);
   }
 
   private getStatusFromContainer(containerId: string): 'new' | 'in-progress' | 'completed' | null {
@@ -432,6 +460,38 @@ export class TasksComponent implements OnInit, AfterViewInit {
     }
   }
 
+  onToggleCompletion(task: TaskWithUsers) {
+    console.log('TasksComponent: Toggling completion for task:', task.id);
+    
+    const updateData: UpdateTaskDto = {
+      completed: !task.completed,
+      status: !task.completed ? 'completed' : 'new'
+    };
+    
+    this.tasksService.updateTask(task.id, updateData).subscribe({
+      next: (updatedTask) => {
+        console.log('Task completion updated successfully:', updatedTask);
+        
+        // Update the task in the main tasks array
+        this.tasks.update(tasks => {
+          const index = tasks.findIndex(t => t.id === updatedTask.id);
+          if (index !== -1) {
+            const newTasks = [...tasks];
+            newTasks[index] = updatedTask;
+            return newTasks;
+          }
+          return tasks;
+        });
+        
+        this.error.set(null);
+      },
+      error: (error) => {
+        console.error('Error updating task completion:', error);
+        this.error.set('Failed to update task completion. Please try again.');
+      }
+    });
+  }
+
   onFilterChange() {
     // Filtering is now handled automatically by computed values
     console.log('Filter changed - tasks will update automatically');
@@ -439,7 +499,7 @@ export class TasksComponent implements OnInit, AfterViewInit {
 
   onSortChange() {
     // Sorting is now handled automatically by computed values
-    console.log('Sort changed - tasks will update automatically');
+    console.log('Sort changed - sorting will update automatically');
   }
 
   toggleAnalytics() {
@@ -448,9 +508,5 @@ export class TasksComponent implements OnInit, AfterViewInit {
 
   clearError() {
     this.error.set(null);
-  }
-
-  trackByTaskId(index: number, task: Task): number {
-    return task.id;
   }
 }

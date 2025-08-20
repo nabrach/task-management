@@ -84,8 +84,12 @@
   <div *ngIf="showForm()" class="mb-6">
     <app-task-form
       #taskForm
-      [editingTask]="editingTask()"
+      [task]="editingTask()"
       [users]="users()"
+      [currentUser]="currentUser()"
+      [isAdmin]="isAdmin()"
+      [isOwner]="isOwner()"
+      [isViewer]="isViewer()"
       (save)="onSave($event)"
       (cancel)="hideForm()"
     ></app-task-form>
@@ -102,16 +106,6 @@
   <!-- Task Management Controls -->
   <div class="flex justify-between items-center mb-6">
     <div class="flex space-x-4">
-      <button
-        (click)="showCreateForm()"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center"
-      >
-        <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-        </svg>
-        Create Task
-      </button>
-      
       <button
         (click)="toggleAnalytics()"
         class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center"
@@ -143,14 +137,22 @@
         id="todo-container"
         cdkDropList
         [cdkDropListData]="todoTasks()"
+        [cdkDropListConnectedTo]="['in-progress-container', 'done-container']"
         (cdkDropListDropped)="onDrop($event)"
+        (cdkDropListEntered)="onDragEnter($event)"
+        (cdkDropListExited)="onDragExit($event)"
         class="min-h-[200px] space-y-3"
       >
         <div
           *ngFor="let task of todoTasks(); trackBy: trackByTaskId"
           cdkDrag
-          class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-move hover:shadow-md transition-shadow duration-200"
+          class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
         >
+          <!-- Drag handle area -->
+          <div class="flex justify-center mb-3">
+            <div class="w-16 h-1.5 bg-gray-300 rounded-full cursor-move hover:bg-gray-400 transition-colors duration-200"></div>
+          </div>
+          
           <div class="flex items-start justify-between">
             <div class="flex-1">
               <h4 class="font-medium text-gray-900 mb-2">{{ task.title }}</h4>
@@ -165,9 +167,23 @@
                 </span>
               </div>
               
-              <div class="flex items-center justify-between text-xs text-gray-500">
+              <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
                 <span>Created: {{ task.createdAt | date:'short' }}</span>
-                <span *ngIf="task.assignee">Assigned to: {{ getAssigneeName(task) }}</span>
+                <span *ngIf="task.assignedTo">Assigned to: {{ getAssigneeName(task) }}</span>
+              </div>
+              
+              <!-- Checkbox at bottom -->
+              <div class="flex items-center space-x-2 pt-2 border-t border-gray-100">
+                <input
+                  type="checkbox"
+                  [checked]="task.completed"
+                  (change)="onToggleCompletion(task)"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  title="Mark as completed"
+                />
+                <span class="text-xs text-gray-500 font-medium">
+                  {{ task.completed ? 'Done' : 'Mark Done' }}
+                </span>
               </div>
             </div>
             
@@ -212,21 +228,29 @@
         id="in-progress-container"
         cdkDropList
         [cdkDropListData]="inProgressTasks()"
+        [cdkDropListConnectedTo]="['todo-container', 'done-container']"
         (cdkDropListDropped)="onDrop($event)"
+        (cdkDropListEntered)="onDragEnter($event)"
+        (cdkDropListExited)="onDragExit($event)"
         class="min-h-[200px] space-y-3"
       >
         <div
           *ngFor="let task of inProgressTasks(); trackBy: trackByTaskId"
           cdkDrag
-          class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-move hover:shadow-md transition-shadow duration-200"
+          class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
         >
+          <!-- Drag handle area -->
+          <div class="flex justify-center mb-3">
+            <div class="w-16 h-1.5 bg-gray-300 rounded-full cursor-move hover:bg-gray-400 transition-colors duration-200"></div>
+          </div>
+          
           <div class="flex items-start justify-between">
             <div class="flex-1">
               <h4 class="font-medium text-gray-900 mb-2">{{ task.title }}</h4>
               <p *ngIf="task.description" class="text-sm text-gray-600 mb-3">{{ task.description }}</p>
               
               <div class="flex items-center space-x-4 text-xs text-gray-500 mb-3">
-                <span *ngIf="task.category" class="bg-gray-100 px-2 py-1 rounded">
+                <span class="bg-gray-100 px-2 py-1 rounded">
                   {{ task.category }}
                 </span>
                 <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
@@ -234,9 +258,23 @@
                 </span>
               </div>
               
-              <div class="flex items-center justify-between text-xs text-gray-500">
+              <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
                 <span>Created: {{ task.createdAt | date:'short' }}</span>
-                <span *ngIf="task.assignee">Assigned to: {{ getAssigneeName(task) }}</span>
+                <span *ngIf="task.assignedTo">Assigned to: {{ getAssigneeName(task) }}</span>
+              </div>
+              
+              <!-- Checkbox at bottom -->
+              <div class="flex items-center space-x-2 pt-2 border-t border-gray-100">
+                <input
+                  type="checkbox"
+                  [checked]="task.completed"
+                  (change)="onToggleCompletion(task)"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  title="Mark as completed"
+                />
+                <span class="text-xs text-gray-500 font-medium">
+                  {{ task.completed ? 'Done' : 'Mark Done' }}
+                </span>
               </div>
             </div>
             
@@ -281,7 +319,10 @@
         id="done-container"
         cdkDropList
         [cdkDropListData]="doneTasks()"
+        [cdkDropListConnectedTo]="['todo-container', 'in-progress-container']"
         (cdkDropListDropped)="onDrop($event)"
+        (cdkDropListEntered)="onDragEnter($event)"
+        (cdkDropListExited)="onDragExit($event)"
         class="min-h-[200px] space-y-3"
       >
         <div
@@ -289,13 +330,18 @@
           cdkDrag
           class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-move hover:shadow-md transition-shadow duration-200"
         >
+          <!-- Drag handle area -->
+          <div class="drag-handle cursor-move mb-2 p-1 -m-1">
+            <div class="w-full h-1 bg-gray-200 rounded-full"></div>
+          </div>
+          
           <div class="flex items-start justify-between">
             <div class="flex-1">
               <h4 class="font-medium text-gray-900 mb-2">{{ task.title }}</h4>
               <p *ngIf="task.description" class="text-sm text-gray-600 mb-3">{{ task.description }}</p>
               
               <div class="flex items-center space-x-4 text-xs text-gray-500 mb-3">
-                <span *ngIf="task.category" class="bg-gray-100 px-2 py-1 rounded">
+                <span class="bg-gray-100 px-2 py-1 rounded">
                   {{ task.category }}
                 </span>
                 <span class="bg-green-100 text-green-800 px-2 py-1 rounded">
@@ -303,9 +349,23 @@
                 </span>
               </div>
               
-              <div class="flex items-center justify-between text-xs text-gray-500">
+              <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
                 <span>Created: {{ task.createdAt | date:'short' }}</span>
-                <span *ngIf="task.assignee">Assigned to: {{ getAssigneeName(task) }}</span>
+                <span *ngIf="task.assignedTo">Assigned to: {{ getAssigneeName(task) }}</span>
+              </div>
+              
+              <!-- Checkbox at bottom -->
+              <div class="flex items-center space-x-2 pt-2 border-t border-gray-100">
+                <input
+                  type="checkbox"
+                  [checked]="task.completed"
+                  (change)="onToggleCompletion(task)"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  title="Mark as completed"
+                />
+                <span class="text-xs text-gray-500 font-medium">
+                  {{ task.completed ? 'Done' : 'Mark Done' }}
+                </span>
               </div>
             </div>
             

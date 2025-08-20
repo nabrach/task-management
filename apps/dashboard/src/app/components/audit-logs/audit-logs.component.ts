@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuditLogsService } from '../../services/audit-logs.service';
@@ -12,15 +12,31 @@ import { AuditLog, AuditAction, AuditResource } from '@my-workspace/data';
   styleUrls: ['./audit-logs.component.css']
 })
 export class AuditLogsComponent implements OnInit {
-  logs: AuditLog[] = [];
-  totalLogs = 0;
-  currentPage = 1;
-  pageSize = 20;
-  loading = false;
-  selectedFilter = 'all';
-  selectedResource = 'all';
-  selectedAction = 'all';
-  selectedLog: AuditLog | null = null;
+  // Convert properties to signals
+  public logs = signal<AuditLog[]>([]);
+  public totalLogs = signal(0);
+  public currentPage = signal(1);
+  public pageSize = signal(20);
+  public loading = signal(false);
+  public selectedFilter = signal('all');
+  public selectedResource = signal('all');
+  public selectedAction = signal('all');
+  public selectedLog = signal<AuditLog | null>(null);
+
+  // Computed signals for filtered logs
+  public filteredLogs = computed(() => {
+    let filtered = this.logs();
+    
+    if (this.selectedResource() !== 'all') {
+      filtered = filtered.filter(log => log.resource === this.selectedResource());
+    }
+
+    if (this.selectedAction() !== 'all') {
+      filtered = filtered.filter(log => log.action === this.selectedAction());
+    }
+
+    return filtered;
+  });
 
   // Filter options
   resourceOptions = [
@@ -38,55 +54,48 @@ export class AuditLogsComponent implements OnInit {
     { value: AuditAction.STATUS_CHANGE, label: 'Status Change' }
   ];
 
-  constructor(
-    private auditLogsService: AuditLogsService,
-    private cdr: ChangeDetectorRef
-  ) {}
+  constructor(private auditLogsService: AuditLogsService) {}
 
   ngOnInit(): void {
     this.loadLogs();
   }
 
   loadLogs(): void {
-    this.loading = true;
+    this.loading.set(true);
     
-    this.auditLogsService.getOrganizationLogs(this.currentPage, this.pageSize)
+    this.auditLogsService.getOrganizationLogs(this.currentPage(), this.pageSize())
       .subscribe({
         next: (response) => {
-          this.logs = this.filterLogs(response.logs);
-          this.totalLogs = response.total;
-          this.loading = false;
-          this.cdr.detectChanges();
+          this.logs.set(response.logs);
+          this.totalLogs.set(response.total);
+          this.loading.set(false);
         },
         error: (error) => {
           console.error('Error loading audit logs:', error);
-          this.loading = false;
-          this.cdr.detectChanges();
+          this.loading.set(false);
         }
       });
   }
 
-  filterLogs(logs: AuditLog[]): AuditLog[] {
-    let filtered = logs;
-
-    if (this.selectedResource !== 'all') {
-      filtered = filtered.filter(log => log.resource === this.selectedResource);
-    }
-
-    if (this.selectedAction !== 'all') {
-      filtered = filtered.filter(log => log.action === this.selectedAction);
-    }
-
-    return filtered;
-  }
-
   onFilterChange(): void {
-    this.currentPage = 1;
+    this.currentPage.set(1);
     this.loadLogs();
   }
 
+  onResourceChange(event: Event): void {
+    const target = event.target as HTMLSelectElement;
+    this.selectedResource.set(target.value);
+    this.onFilterChange();
+  }
+
+  onActionChange(event: Event): void {
+    const target = event.target as HTMLSelectElement;
+    this.selectedAction.set(target.value);
+    this.onFilterChange();
+  }
+
   onPageChange(page: number): void {
-    this.currentPage = page;
+    this.currentPage.set(page);
     this.loadLogs();
   }
 
@@ -157,14 +166,14 @@ export class AuditLogsComponent implements OnInit {
   }
 
   getTotalPages(): number {
-    return Math.ceil(this.totalLogs / this.pageSize);
+    return Math.ceil(this.totalLogs() / this.pageSize());
   }
 
   getPageNumbers(): number[] {
     const totalPages = this.getTotalPages();
     const pages: number[] = [];
-    const start = Math.max(1, this.currentPage - 2);
-    const end = Math.min(totalPages, this.currentPage + 2);
+    const start = Math.max(1, this.currentPage() - 2);
+    const end = Math.min(totalPages, this.currentPage() + 2);
 
     for (let i = start; i <= end; i++) {
       pages.push(i);
@@ -174,7 +183,7 @@ export class AuditLogsComponent implements OnInit {
   }
 
   showChanges(log: AuditLog): void {
-    this.selectedLog = log;
+    this.selectedLog.set(log);
   }
 
   get Math() {

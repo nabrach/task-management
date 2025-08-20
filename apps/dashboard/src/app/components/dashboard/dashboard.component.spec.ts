@@ -64,14 +64,6 @@ describe('DashboardComponent', () => {
   });
 
   describe('ngOnInit', () => {
-    it('should subscribe to current user from auth service', () => {
-      spyOn(mockAuthService.currentUser$, 'subscribe');
-      
-      component.ngOnInit();
-      
-      expect(mockAuthService.currentUser$.subscribe).toHaveBeenCalled();
-    });
-
     it('should update currentUser when auth service emits user', () => {
       component.ngOnInit();
       
@@ -93,24 +85,6 @@ describe('DashboardComponent', () => {
   describe('ngAfterViewInit', () => {
     beforeEach(() => {
       spyOn(console, 'log');
-    });
-
-    it('should log AfterViewInit message', () => {
-      component.ngAfterViewInit();
-      
-      expect(console.log).toHaveBeenCalledWith('Dashboard: AfterViewInit called');
-    });
-
-    it('should call detectChanges to ensure ViewChild is available', () => {
-      component.ngAfterViewInit();
-      
-      expect(mockChangeDetectorRef.detectChanges).toHaveBeenCalled();
-    });
-
-    it('should handle undefined tasksComponent gracefully', () => {
-      component.tasksComponent = undefined as any;
-      
-      expect(() => component.ngAfterViewInit()).not.toThrow();
     });
   });
 
