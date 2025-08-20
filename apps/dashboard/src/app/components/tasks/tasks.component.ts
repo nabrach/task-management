@@ -1,4 +1,4 @@
-import { Component, OnInit, Output, AfterViewInit, ChangeDetectorRef, ViewChild } from '@angular/core';
+import { Component, OnInit, Output, AfterViewInit, ViewChild, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
@@ -19,39 +19,98 @@ import { TaskAnalyticsComponent } from '../task-analytics/task-analytics.compone
 export class TasksComponent implements OnInit, AfterViewInit {
   @ViewChild('taskForm') taskFormComponent!: TaskFormComponent;
   
-  tasks: TaskWithUsers[] = [];
-  todoTasks: TaskWithUsers[] = [];
-  inProgressTasks: TaskWithUsers[] = [];
-  doneTasks: TaskWithUsers[] = [];
+  // Convert arrays to signals
+  public tasks = signal<TaskWithUsers[]>([]);
+  public users = signal<IUser[]>([]);
   
-  showForm = false;
-  editingTask: Task | undefined = undefined;
-  isLoading = false;
-  error: string | null = null;
+  // Computed values for categorized tasks
+  public todoTasks = computed(() => 
+    this.filterTasksByUser(this.tasks()).filter(task => task.status === 'new')
+  );
   
-  currentUser: IUser | null = null;
-  users: IUser[] = [];
-  isAdmin: boolean = false;
-  isOwner: boolean = false;
-  isViewer: boolean = false;
-
-  // Analytics and filtering properties
-  showAnalytics = false;
-  selectedCategory = '';
-  selectedStatus = '';
-  sortBy = 'createdAt';
-  sortOrder = 'desc';
-  filteredTasks: TaskWithUsers[] = [];
+  public inProgressTasks = computed(() => 
+    this.filterTasksByUser(this.tasks()).filter(task => task.status === 'in-progress')
+  );
+  
+  public doneTasks = computed(() => 
+    this.filterTasksByUser(this.tasks()).filter(task => task.status === 'completed')
+  );
+  
+  // UI state signals
+  public showForm = signal(false);
+  public editingTask = signal<Task | undefined>(undefined);
+  public isLoading = signal(false);
+  public error = signal<string | null>(null);
+  public showAnalytics = signal(false);
+  
+  // Filter and sort signals
+  public selectedCategory = signal('');
+  public selectedStatus = signal('');
+  public sortBy = signal('createdAt');
+  public sortOrder = signal('desc');
+  
+  // Computed filtered tasks
+  public filteredTasks = computed(() => {
+    let tasks = this.tasks();
+    
+    // Apply category filter
+    if (this.selectedCategory()) {
+      tasks = tasks.filter(task => task.category === this.selectedCategory());
+    }
+    
+    // Apply status filter
+    if (this.selectedStatus()) {
+      tasks = tasks.filter(task => task.status === this.selectedStatus());
+    }
+    
+    // Apply sorting
+    const sortBy = this.sortBy();
+    const sortOrder = this.sortOrder();
+    
+    tasks.sort((a, b) => {
+      let aValue = a[sortBy as keyof TaskWithUsers];
+      let bValue = b[sortBy as keyof TaskWithUsers];
+      
+      // Handle undefined values
+      if (aValue === undefined && bValue === undefined) return 0;
+      if (aValue === undefined) return sortOrder === 'asc' ? -1 : 1;
+      if (bValue === undefined) return sortOrder === 'asc' ? 1 : -1;
+      
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return tasks;
+  });
+  
+  // User state signals (will be initialized in ngOnInit)
+  public currentUser: any;
+  public isOwner: any;
+  public isAdmin: any;
+  public isViewer: any;
 
   constructor(
     private tasksService: TasksService,
     private authService: AuthService,
-    private usersService: UsersService,
-    private cdr: ChangeDetectorRef
-  ) {}
+    private usersService: UsersService
+  ) {
+    // Effect to automatically load users when user changes
+    effect(() => {
+      const user = this.currentUser?.();
+      if (user && (this.isOwner?.() || this.isAdmin?.())) {
+        this.loadUsers();
+      }
+    });
+  }
 
   ngOnInit() {
-    console.log('TasksComponent: ngOnInit called');
+    // Initialize computed values after constructor
+    this.currentUser = this.authService.currentUser;
+    this.isOwner = computed(() => this.currentUser()?.role === UserRole.OWNER);
+    this.isAdmin = computed(() => this.currentUser()?.role === UserRole.ADMIN);
+    this.isViewer = computed(() => this.currentUser()?.role === UserRole.VIEWER);
+    
     this.loadCurrentUser();
     this.loadTasks();
   }
@@ -61,31 +120,22 @@ export class TasksComponent implements OnInit, AfterViewInit {
   }
 
   private loadCurrentUser() {
-    this.authService.currentUser$.subscribe(user => {
-      this.currentUser = user;
-      this.isOwner = user?.role === UserRole.OWNER;
-      this.isAdmin = user?.role === UserRole.ADMIN;
-      this.isViewer = user?.role === UserRole.VIEWER;
-      
-      // Owner and Admin can load users for assignment
-      if (this.isOwner || this.isAdmin) {
-        this.loadUsers();
-      }
-    });
+    // User is already loaded via signal, no need to subscribe
+    console.log('TasksComponent: Current user loaded via signal');
   }
 
   private loadUsers() {
-    if (this.currentUser?.organizationId) {
-      console.log('Loading users for organization:', this.currentUser.organizationId);
-      this.usersService.getUsersByOrganization(this.currentUser.organizationId).subscribe({
+    const user = this.currentUser();
+    if (user?.organizationId) {
+      console.log('Loading users for organization:', user.organizationId);
+      this.usersService.getUsersByOrganization(user.organizationId).subscribe({
         next: (users) => {
           console.log('Users loaded:', users);
-          this.users = users;
-          this.cdr.detectChanges();
+          this.users.set(users);
         },
         error: (error) => {
           console.error('Error loading users:', error);
-          this.error = 'Failed to load users. Please try again.';
+          this.error.set('Failed to load users. Please try again.');
         }
       });
     } else {
@@ -93,49 +143,46 @@ export class TasksComponent implements OnInit, AfterViewInit {
       this.usersService.getUsersByOrganization(1).subscribe({
         next: (users) => {
           console.log('Users loaded for default organization:', users);
-          this.users = users;
-          this.cdr.detectChanges();
+          this.users.set(users);
         },
         error: (error) => {
           console.error('Error loading users for default organization:', error);
-          this.error = 'Failed to load users. Please try again.';
+          this.error.set('Failed to load users. Please try again.');
         }
       });
     }
   }
 
   public canEditTask(task: Task): boolean {
-    if (!this.currentUser) return false;
+    const user = this.currentUser();
+    if (!user) return false;
     
     // Owner and Admin can edit any task in their organization
-    if ((this.isOwner || this.isAdmin) && (task.organizationId || 1) === (this.currentUser.organizationId || 1)) {
+    if ((this.isOwner() || this.isAdmin()) && (task.organizationId || 1) === (user.organizationId || 1)) {
       return true;
     }
     
     // Viewers cannot edit tasks
-    if (this.isViewer) {
-      return false;
-    }
+    if (this.isViewer()) return false;
     
     // Regular users can only edit tasks they created or are assigned to
-    return (task.createdBy || 0) === this.currentUser.id || (task.assignedTo || 0) === this.currentUser.id;
+    return (task.createdBy || 0) === user.id || (task.assignedTo || 0) === user.id;
   }
 
   public canDeleteTask(task: Task): boolean {
-    if (!this.currentUser) return false;
+    const user = this.currentUser();
+    if (!user) return false;
     
     // Owner and Admin can delete any task in their organization
-    if ((this.isOwner || this.isAdmin) && (task.organizationId || 1) === (this.currentUser.organizationId || 1)) {
+    if ((this.isOwner() || this.isAdmin()) && (task.organizationId || 1) === (user.organizationId || 1)) {
       return true;
     }
     
     // Viewers cannot delete tasks
-    if (this.isViewer) {
-      return false;
-    }
+    if (this.isViewer()) return false;
     
     // Regular users can only delete tasks they created
-    return (task.createdBy || 0) === this.currentUser.id;
+    return (task.createdBy || 0) === user.id;
   }
 
   public getAssigneeName(task: TaskWithUsers): string {
@@ -163,22 +210,23 @@ export class TasksComponent implements OnInit, AfterViewInit {
   }
 
   private filterTasksByUser(tasks: Task[]): Task[] {
-    if (!this.currentUser) return [];
+    const user = this.currentUser();
+    if (!user) return [];
     
-    if (this.isOwner || this.isAdmin) {
+    if (this.isOwner() || this.isAdmin()) {
       // Owner and Admin see all tasks in their organization
-      return tasks.filter(task => (task.organizationId || 1) === (this.currentUser?.organizationId || 1));
-    } else if (this.isViewer) {
+      return tasks.filter(task => (task.organizationId || 1) === (user.organizationId || 1));
+    } else if (this.isViewer()) {
       // Viewers see tasks they created or are assigned to
       return tasks.filter(task => 
-        (task.createdBy || 0) === this.currentUser?.id || 
-        (task.assignedTo || 0) === this.currentUser?.id
+        (task.createdBy || 0) === user.id || 
+        (task.assignedTo || 0) === user.id
       );
     } else {
       // Regular users see tasks they created or are assigned to
       return tasks.filter(task => 
-        (task.createdBy || 0) === this.currentUser?.id || 
-        (task.assignedTo || 0) === this.currentUser?.id
+        (task.createdBy || 0) === user.id || 
+        (task.assignedTo || 0) === user.id
       );
     }
   }
@@ -186,46 +234,21 @@ export class TasksComponent implements OnInit, AfterViewInit {
   loadTasks() {
     console.log('TasksComponent: loadTasks called');
     
-    this.isLoading = true;
-    this.error = null;
+    this.isLoading.set(true);
+    this.error.set(null);
     
     this.tasksService.getTasks().subscribe({
       next: (tasks) => {
         console.log('TasksComponent: Tasks loaded successfully:', tasks);
-        this.tasks = tasks;
-        this.filteredTasks = [...tasks]; // Initialize filtered tasks
-        this.categorizeTasks(true);
-        this.isLoading = false;
-        this.cdr.detectChanges();
+        this.tasks.set(tasks);
+        this.isLoading.set(false);
       },
       error: (error) => {
         console.error('TasksComponent: Error loading tasks:', error);
-        this.error = 'Failed to load tasks. Please try again.';
-        this.isLoading = false;
-        this.cdr.detectChanges();
+        this.error.set('Failed to load tasks. Please try again.');
+        this.isLoading.set(false);
       }
     });
-  }
-
-  private categorizeTasks(shouldDetectChanges = false) {
-    // Always use the main tasks array as the source of truth
-    const tasksToCategorize = this.tasks;
-    const filteredTasks = this.filterTasksByUser(tasksToCategorize);
-    
-    // Update the column arrays
-    this.todoTasks = filteredTasks.filter(task => task.status === 'new');
-    this.inProgressTasks = filteredTasks.filter(task => task.status === 'in-progress');
-    this.doneTasks = filteredTasks.filter(task => task.status === 'completed');
-    
-    console.log('TasksComponent: categorizeTasks - Total tasks:', this.tasks.length);
-    console.log('TasksComponent: categorizeTasks - Filtered tasks:', filteredTasks.length);
-    console.log('TasksComponent: categorizeTasks - Todo tasks:', this.todoTasks.length);
-    console.log('TasksComponent: categorizeTasks - In Progress tasks:', this.inProgressTasks.length);
-    console.log('TasksComponent: categorizeTasks - Done tasks:', this.doneTasks.length);
-    
-    if (shouldDetectChanges) {
-      this.cdr.detectChanges();
-    }
   }
 
   onDrop(event: CdkDragDrop<Task[]>) {
@@ -275,40 +298,32 @@ export class TasksComponent implements OnInit, AfterViewInit {
         console.log('Task status updated successfully:', updatedTask);
         
         // Update the task in the main tasks array
-        const index = this.tasks.findIndex(t => t.id === updatedTask.id);
-        if (index !== -1) {
-          this.tasks[index] = updatedTask;
-          
-          // Also update the filteredTasks array if it exists
-          const filteredIndex = this.filteredTasks.findIndex(t => t.id === updatedTask.id);
-          if (filteredIndex !== -1) {
-            this.filteredTasks[filteredIndex] = updatedTask;
+        this.tasks.update(tasks => {
+          const index = tasks.findIndex(t => t.id === updatedTask.id);
+          if (index !== -1) {
+            const newTasks = [...tasks];
+            newTasks[index] = updatedTask;
+            return newTasks;
           }
-        }
-        
-        // Recategorize tasks to update the columns
-        this.categorizeTasks(true);
-        this.cdr.detectChanges();
+          return tasks;
+        });
       },
       error: (error) => {
         console.error('Error updating task status:', error);
-        this.error = 'Failed to update task status. Please try again.';
-        this.cdr.detectChanges();
+        this.error.set('Failed to update task status. Please try again.');
       }
     });
   }
 
-
-
   showCreateForm() {
-    this.editingTask = undefined;
-    this.showForm = true;
+    this.editingTask.set(undefined);
+    this.showForm.set(true);
     console.log('Showing create form');
   }
 
   showEditForm(task: Task) {
-    this.editingTask = task;
-    this.showForm = true;
+    this.editingTask.set(task);
+    this.showForm.set(true);
     console.log('Showing edit form for task:', task.id);
   }
 
@@ -320,248 +335,122 @@ export class TasksComponent implements OnInit, AfterViewInit {
       this.taskFormComponent.clearForm();
     }
     
-    this.showForm = false;
-    this.editingTask = undefined;
-    this.cdr.detectChanges();
+    this.showForm.set(false);
+    this.editingTask.set(undefined);
     
-    console.log('TasksComponent: Form hidden, showForm:', this.showForm);
+    console.log('TasksComponent: Form hidden, showForm:', this.showForm());
   }
 
   onSave(taskData: CreateTaskDto | UpdateTaskDto) {
-    if (this.editingTask) {
+    const editingTask = this.editingTask();
+    
+    if (editingTask) {
       // Update existing task
-      console.log('TasksComponent: Updating task:', this.editingTask.id, taskData);
+      console.log('TasksComponent: Updating task:', editingTask.id, taskData);
       
       // Check if user has permission to edit this task
-      if (!this.canEditTask(this.editingTask)) {
-        this.error = 'You do not have permission to edit this task.';
-        this.cdr.detectChanges();
+      if (!this.canEditTask(editingTask)) {
+        this.error.set('You do not have permission to edit this task.');
         return;
       }
       
-      this.tasksService.updateTask(this.editingTask.id, taskData as UpdateTaskDto).subscribe({
+      this.tasksService.updateTask(editingTask.id, taskData as UpdateTaskDto).subscribe({
         next: (updatedTask) => {
           console.log('TasksComponent: Task updated successfully:', updatedTask);
           
-          const index = this.tasks.findIndex(t => t.id === updatedTask.id);
-          if (index !== -1) {
-            this.tasks[index] = updatedTask;
-            
-            // Also update the filteredTasks array if it exists
-            const filteredIndex = this.filteredTasks.findIndex(t => t.id === updatedTask.id);
-            if (filteredIndex !== -1) {
-              this.filteredTasks[filteredIndex] = updatedTask;
+          // Update the task in the main tasks array
+          this.tasks.update(tasks => {
+            const index = tasks.findIndex(t => t.id === updatedTask.id);
+            if (index !== -1) {
+              const newTasks = [...tasks];
+              newTasks[index] = updatedTask;
+              return newTasks;
             }
-          }
+            return tasks;
+          });
           
-          this.categorizeTasks(true);
-          this.cdr.detectChanges();
           this.hideForm();
-          this.error = null;
+          this.error.set(null);
         },
         error: (error) => {
           console.error('TasksComponent: Error updating task:', error);
-          this.error = 'Failed to update task. Please try again.';
-          this.cdr.detectChanges();
+          this.error.set('Failed to update task. Please try again.');
         }
       });
     } else {
       // Create new task
       console.log('TasksComponent: Creating new task:', taskData);
+      const user = this.currentUser();
       const newTaskData = { 
         ...taskData, 
         status: 'new',
-        organizationId: this.currentUser?.organizationId || 1,
-        createdBy: this.currentUser?.id || 1
+        organizationId: user?.organizationId || 1,
+        createdBy: user?.id || 1
       } as CreateTaskDto;
       
       // If no user is assigned, assign to the creator
       if (!newTaskData.assignedTo) {
-        newTaskData.assignedTo = this.currentUser?.id || 1;
+        newTaskData.assignedTo = user?.id || 1;
       }
       
       this.tasksService.createTask(newTaskData).subscribe({
         next: (newTask) => {
           console.log('TasksComponent: Task created successfully:', newTask);
           
-          // Add the new task to both arrays
-          this.tasks.unshift(newTask);
-          this.filteredTasks.unshift(newTask);
+          // Add the new task to the tasks array
+          this.tasks.update(tasks => [newTask, ...tasks]);
           
-          console.log('TasksComponent: New task added to arrays. Total tasks:', this.tasks.length);
+          console.log('TasksComponent: New task added to arrays. Total tasks:', this.tasks().length);
           
-          // Recategorize tasks to update the columns
-          this.categorizeTasks(true);
-          this.cdr.detectChanges();
           this.hideForm();
-          this.error = null;
+          this.error.set(null);
         },
         error: (error) => {
           console.error('TasksComponent: Error creating task:', error);
-          this.error = 'Failed to create task. Please try again.';
-          this.cdr.detectChanges();
+          this.error.set('Failed to create task. Please try again.');
         }
       });
     }
   }
 
   onDelete(taskId: number) {
-    console.log('TasksComponent: Deleting task with ID:', taskId);
-    
-    this.tasksService.deleteTask(taskId).subscribe({
-      next: () => {
-        console.log('Task deleted successfully from API');
-        
-        // Remove from both arrays
-        this.tasks = this.tasks.filter(t => t.id !== taskId);
-        this.filteredTasks = this.filteredTasks.filter(t => t.id !== taskId);
-        
-        this.categorizeTasks(true);
-        this.cdr.detectChanges();
-        this.error = null;
-        
-        console.log('TasksComponent: Task deletion completed successfully');
-      },
-      error: (error) => {
-        console.error('TasksComponent: Error deleting task:', error);
-        this.error = 'Failed to delete task. Please try again.';
-        this.cdr.detectChanges();
-      }
-    });
+    if (confirm('Are you sure you want to delete this task?')) {
+      this.tasksService.deleteTask(taskId).subscribe({
+        next: () => {
+          console.log('TasksComponent: Task deleted successfully');
+          
+          // Remove the task from the tasks array
+          this.tasks.update(tasks => tasks.filter(t => t.id !== taskId));
+          
+          this.error.set(null);
+        },
+        error: (error) => {
+          console.error('TasksComponent: Error deleting task:', error);
+          this.error.set('Failed to delete task. Please try again.');
+        }
+      });
+    }
   }
 
-  onToggleComplete(data: { id: number; completed: boolean }) {
-    console.log('TasksComponent: Toggling completion for task ID:', data.id, 'to:', data.completed);
-    
-    // Find the current task to determine its current status
-    const currentTask = this.tasks.find(t => t.id === data.id);
-    if (!currentTask) {
-      console.error('Task not found for ID:', data.id);
-      return;
-    }
-    
-    let newStatus: 'new' | 'in-progress' | 'completed';
-    
-    if (data.completed) {
-      // If marking as completed, move to completed status
-      newStatus = 'completed';
-    } else {
-      // If unchecking, determine appropriate status based on current status
-      if (currentTask.status === 'completed') {
-        // If it was completed, move back to in-progress
-        newStatus = 'in-progress';
-      } else if (currentTask.status === 'new') {
-        // If it was new, keep it as new
-        newStatus = 'new';
-      } else {
-        // If it was in-progress, keep it as in-progress
-        newStatus = 'in-progress';
-      }
-    }
-    
-    const updateData: UpdateTaskDto = { 
-      completed: data.completed,
-      status: newStatus
-    };
-    
-    this.tasksService.updateTask(data.id, updateData).subscribe({
-      next: (updatedTask) => {
-        console.log('Task completion updated successfully:', updatedTask);
-        
-        // Update the task in the main tasks array
-        const index = this.tasks.findIndex(t => t.id === updatedTask.id);
-        if (index !== -1) {
-          this.tasks[index] = updatedTask;
-        }
-        
-        // Recategorize tasks to update the columns immediately
-        this.categorizeTasks(true);
-        this.cdr.detectChanges();
-        
-        // Clear any errors
-        this.error = null;
-      },
-      error: (error) => {
-        console.error('TasksComponent: Error updating task completion:', error);
-        this.error = 'Failed to update task. Please try again.';
-        this.cdr.detectChanges();
-      }
-    });
+  onFilterChange() {
+    // Filtering is now handled automatically by computed values
+    console.log('Filter changed - tasks will update automatically');
+  }
+
+  onSortChange() {
+    // Sorting is now handled automatically by computed values
+    console.log('Sort changed - tasks will update automatically');
+  }
+
+  toggleAnalytics() {
+    this.showAnalytics.update(current => !current);
   }
 
   clearError() {
-    this.error = null;
+    this.error.set(null);
   }
 
   trackByTaskId(index: number, task: Task): number {
     return task.id;
-  }
-
-  // Analytics methods
-  toggleAnalytics() {
-    this.showAnalytics = !this.showAnalytics;
-  }
-
-  // Filtering and sorting methods
-  applyFilters() {
-    this.filteredTasks = [...this.tasks];
-    
-    // Apply category filter
-    if (this.selectedCategory) {
-      this.filteredTasks = this.filteredTasks.filter(task => 
-        task.category === this.selectedCategory
-      );
-    }
-    
-    // Apply status filter
-    if (this.selectedStatus) {
-      this.filteredTasks = this.filteredTasks.filter(task => 
-        task.status === this.selectedStatus
-      );
-    }
-    
-    // Apply sorting
-    this.filteredTasks.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-      
-      switch (this.sortBy) {
-        case 'title':
-          aValue = a.title?.toLowerCase() || '';
-          bValue = b.title?.toLowerCase() || '';
-          break;
-        case 'category':
-          aValue = a.category?.toLowerCase() || '';
-          bValue = b.category?.toLowerCase() || '';
-          break;
-        case 'status':
-          aValue = a.status?.toLowerCase() || '';
-          bValue = b.status?.toLowerCase() || '';
-          break;
-        case 'createdAt':
-        default:
-          aValue = new Date(a.createdAt || '').getTime();
-          bValue = new Date(b.createdAt || '').getTime();
-          break;
-      }
-      
-      if (this.sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
-    
-    // Update the categorized task arrays
-    this.categorizeTasks(true);
-  }
-
-  clearFilters() {
-    this.selectedCategory = '';
-    this.selectedStatus = '';
-    this.sortBy = 'createdAt';
-    this.sortOrder = 'desc';
-    this.filteredTasks = [...this.tasks];
-    this.categorizeTasks(true);
   }
 }

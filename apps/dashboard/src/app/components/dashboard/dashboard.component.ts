@@ -1,9 +1,11 @@
-import { Component, OnInit, ViewChild, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { AuthService, User, Organization } from '../../services/auth.service';
+import { AuthService } from '../../services/auth.service';
+import { UsersService } from '../../services/users.service';
 import { TasksComponent } from '../tasks/tasks.component';
 import { AuditLogsComponent } from '../audit-logs/audit-logs.component';
+import { IUser, IOrganization } from '@my-workspace/data';
 
 @Component({
   selector: 'app-dashboard',
@@ -12,92 +14,89 @@ import { AuditLogsComponent } from '../audit-logs/audit-logs.component';
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
-export class DashboardComponent implements OnInit, AfterViewInit {
-  currentUser: User | null = null;
-  currentOrganization: Organization | null = null;
-  activeTab: 'tasks' | 'audit-logs' = 'tasks';
-  isMobileMenuOpen = false;
+export class DashboardComponent implements OnInit {
+  // Convert component properties to signals
+  public activeTab = signal<'tasks' | 'audit-logs'>('tasks');
+  public isMobileMenuOpen = signal(false);
+  
+  // Organization state
+  public currentOrganization = signal<IOrganization | null>(null);
+  public isLoadingOrganization = signal(false);
+  public organizationError = signal<string | null>(null);
 
-  @ViewChild(TasksComponent) tasksComponent!: TasksComponent;
+  // Computed values for derived state (will be initialized in ngOnInit)
+  public currentUser: any;
+  public currentUserRole: any;
+  public currentUserOrganizationId: any;
 
   constructor(
     private authService: AuthService,
-    private router: Router,
-    private cdr: ChangeDetectorRef
-  ) {}
-
-  ngOnInit() {
-    console.log('Dashboard: ngOnInit called');
-    // Subscribe to current user - the auth guard ensures we're authenticated
-    this.authService.currentUser$.subscribe(user => {
-      this.currentUser = user;
-      console.log('Dashboard: User loaded:', user?.email);
-      
+    private usersService: UsersService,
+    private router: Router
+  ) {
+    // Effect to automatically load organization when user changes
+    effect(() => {
+      const user = this.authService.currentUser();
       if (user?.organizationId) {
-        console.log('Dashboard: Loading organization for ID:', user.organizationId);
         this.loadOrganization(user.organizationId);
       } else {
-        console.log('Dashboard: No organization ID found for user');
-        this.currentOrganization = null;
-        this.cdr.detectChanges();
+        this.currentOrganization.set(null);
       }
     });
   }
 
-  ngAfterViewInit() {
-    console.log('Dashboard: AfterViewInit called');
-    // Force change detection to ensure ViewChild is available
-    this.cdr.detectChanges();
+  ngOnInit() {
+    console.log('DashboardComponent: ngOnInit called');
     
-    // Load tasks when dashboard initializes
-    if (this.tasksComponent) {
-      console.log('Dashboard: Loading tasks');
-      this.tasksComponent.loadTasks();
+    // Initialize computed values after constructor
+    this.currentUser = this.authService.currentUser;
+    this.currentUserRole = this.authService.currentUserRole;
+    this.currentUserOrganizationId = this.authService.currentUserOrganizationId;
+    
+    // Check if user is logged in
+    if (!this.authService.isLoggedIn()) {
+      console.log('User not logged in, redirecting to login');
+      this.router.navigate(['/login']);
+      return;
     }
+    
+    console.log('DashboardComponent: User is logged in');
+  }
+
+  setActiveTab(tab: 'tasks' | 'audit-logs') {
+    this.activeTab.set(tab);
+  }
+
+  toggleMobileMenu() {
+    this.isMobileMenuOpen.update(current => !current);
+  }
+
+  closeMobileMenu() {
+    this.isMobileMenuOpen.set(false);
   }
 
   logout() {
+    console.log('DashboardComponent: logout called');
     this.authService.logout();
     this.router.navigate(['/login']);
   }
 
-  setActiveTab(tab: 'tasks' | 'audit-logs'): void {
-    this.activeTab = tab;
-  }
-
-  toggleMobileMenu(): void {
-    this.isMobileMenuOpen = !this.isMobileMenuOpen;
-  }
-
-  closeMobileMenu(): void {
-    this.isMobileMenuOpen = false;
-  }
-
-  private loadOrganization(organizationId: number | string): void {
-    console.log('Dashboard: loadOrganization called with ID:', organizationId);
+  private loadOrganization(organizationId: number) {
+    this.isLoadingOrganization.set(true);
+    this.organizationError.set(null);
     
-    // Convert to number if it's a string
-    const orgId = typeof organizationId === 'string' ? parseInt(organizationId, 10) : organizationId;
-    
-    if (isNaN(orgId)) {
-      console.error('Dashboard: Invalid organization ID:', organizationId);
-      this.currentOrganization = null;
-      return;
-    }
-    
+    // Use the authService to get organizations instead
     this.authService.getOrganizations().subscribe({
-      next: (organizations) => {
-        const foundOrg = organizations.find(org => org.id === orgId);
-        this.currentOrganization = foundOrg || null;
-        console.log('Dashboard: Organization loaded:', this.currentOrganization?.name || 'Not found');
-        
-        // Force change detection to ensure template updates
-        this.cdr.detectChanges();
+      next: (organizations: IOrganization[]) => {
+        const organization = organizations.find(org => org.id === organizationId);
+        console.log('Organization loaded:', organization);
+        this.currentOrganization.set(organization || null);
+        this.isLoadingOrganization.set(false);
       },
-      error: (error) => {
-        console.error('Dashboard: Failed to load organization:', error);
-        this.currentOrganization = null;
-        this.cdr.detectChanges();
+      error: (error: any) => {
+        console.error('Error loading organization:', error);
+        this.organizationError.set('Failed to load organization information');
+        this.isLoadingOrganization.set(false);
       }
     });
   }

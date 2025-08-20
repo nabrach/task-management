@@ -19,16 +19,16 @@
             <div class="flex-shrink-0">
               <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
                 <span class="text-sm font-medium text-white">
-                  {{ (currentUser?.firstName || currentUser?.email || 'U')[0] | uppercase }}
+                  {{ (currentUser()?.firstName || currentUser()?.email || 'U')[0] | uppercase }}
                 </span>
               </div>
             </div>
             <div class="ml-3">
-              <p class="text-sm font-medium text-gray-900" *ngIf="currentUser">
-                {{ currentUser.firstName || currentUser.email }}
+              <p class="text-sm font-medium text-gray-900" *ngIf="currentUser()">
+                {{ currentUser()?.firstName || currentUser()?.email }}
               </p>
-              <p class="text-xs text-gray-500" *ngIf="currentUser">
-                {{ currentUser.email }}
+              <p class="text-xs text-gray-500" *ngIf="currentUser()">
+                {{ currentUser()?.email }}
               </p>
             </div>
           </div>
@@ -93,23 +93,23 @@
             <div class="flex-shrink-0">
               <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
                 <span class="text-sm font-medium text-white">
-                  {{ (currentUser?.firstName || currentUser?.email || 'U')[0] | uppercase }}
+                  {{ (currentUser()?.firstName || currentUser()?.email || 'U')[0] | uppercase }}
                 </span>
               </div>
             </div>
             <div class="ml-3">
-              <p class="text-base font-medium text-gray-900" *ngIf="currentUser">
-                {{ currentUser.firstName || currentUser.email }}
+              <p class="text-base font-medium text-gray-900" *ngIf="currentUser()">
+                {{ currentUser()?.firstName || currentUser()?.email }}
               </p>
-              <p class="text-sm text-gray-500" *ngIf="currentUser">
-                {{ currentUser.email }}
+              <p class="text-sm text-gray-500" *ngIf="currentUser()">
+                {{ currentUser()?.email }}
               </p>
             </div>
           </div>
         </div>
         
         <!-- Organization info in mobile menu -->
-        <div *ngIf="currentOrganization" class="px-3 py-2">
+        <div *ngIf="currentOrganization()" class="px-3 py-2">
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <div class="flex items-center">
               <svg class="h-4 w-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,10 +117,10 @@
               </svg>
               <div>
                 <p class="text-sm font-medium text-blue-900">
-                  {{ currentOrganization.name }}
+                  {{ currentOrganization()?.name }}
                 </p>
-                <p *ngIf="currentOrganization.description" class="text-xs text-blue-700 mt-1">
-                  {{ currentOrganization.description }}
+                <p *ngIf="currentOrganization()?.description" class="text-xs text-blue-700 mt-1">
+                  {{ currentOrganization()?.description }}
                 </p>
               </div>
             </div>
@@ -128,7 +128,7 @@
         </div>
         
         <!-- Organization loading state in mobile menu -->
-        <div *ngIf="currentUser?.organizationId && !currentOrganization" class="px-3 py-2">
+        <div *ngIf="currentUser()?.organizationId && !currentOrganization()" class="px-3 py-2">
           <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
             <div class="flex items-center">
               <svg class="animate-spin h-4 w-4 text-gray-600 mr-2" fill="none" viewBox="0 0 24 24">
@@ -141,7 +141,7 @@
         </div>
         
         <!-- No organization assigned in mobile menu -->
-        <div *ngIf="!currentUser?.organizationId" class="px-3 py-2">
+        <div *ngIf="!currentUser()?.organizationId" class="px-3 py-2">
           <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
             <div class="flex items-center">
               <svg class="h-4 w-4 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -173,31 +173,31 @@
     <!-- Welcome Section -->
     <div class="mb-8">
       <h2 class="text-3xl font-bold text-gray-900 mb-2">
-        Welcome back, {{ currentUser?.firstName || 'User' }}!
+        Welcome back, {{ currentUser()?.firstName || 'User' }}!
       </h2>
       <p class="text-lg text-gray-600 mb-4">
         Manage your tasks and monitor organization activity.
       </p>
       
       <!-- Organization Information -->
-      <div *ngIf="currentOrganization" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div *ngIf="currentOrganization()" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div class="flex items-center">
           <svg class="h-5 w-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
           </svg>
           <div>
             <p class="text-sm font-medium text-blue-900">
-              Organization: <span class="font-semibold">{{ currentOrganization.name }}</span>
+              Organization: <span class="font-semibold">{{ currentOrganization()?.name }}</span>
             </p>
-            <p *ngIf="currentOrganization.description" class="text-xs text-blue-700 mt-1">
-              {{ currentOrganization.description }}
+            <p *ngIf="currentOrganization()?.description" class="text-xs text-blue-700 mt-1">
+              {{ currentOrganization()?.description }}
             </p>
           </div>
         </div>
       </div>
       
       <!-- Organization Loading State -->
-      <div *ngIf="currentUser?.organizationId && !currentOrganization" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+      <div *ngIf="currentUser()?.organizationId && !currentOrganization()" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <div class="flex items-center">
           <svg class="animate-spin h-5 w-5 text-gray-600 mr-2" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -208,7 +208,7 @@
       </div>
       
       <!-- No Organization Message -->
-      <div *ngIf="!currentOrganization && currentUser?.organizationId" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <div *ngIf="!currentOrganization() && currentUser()?.organizationId" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <div class="flex items-center">
           <svg class="h-5 w-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
@@ -220,7 +220,7 @@
       </div>
       
       <!-- No Organization ID Message -->
-      <div *ngIf="!currentUser?.organizationId" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+      <div *ngIf="!currentUser()?.organizationId" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center">
             <svg class="h-5 w-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,7 +240,7 @@
       <nav class="flex space-x-8 dashboard-tabs" aria-label="Tabs">
         <button
           (click)="setActiveTab('tasks')"
-          [class]="activeTab === 'tasks' 
+          [class]="activeTab() === 'tasks' 
             ? 'border-blue-500 text-blue-600' 
             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
           class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
@@ -254,9 +254,9 @@
         </button>
         
         <button
-          *ngIf="currentUser?.role === 'admin' || currentUser?.role === 'owner'"
+          *ngIf="currentUser()?.role === 'admin' || currentUser()?.role === 'owner'"
           (click)="setActiveTab('audit-logs')"
-          [class]="activeTab === 'audit-logs' 
+          [class]="activeTab() === 'audit-logs' 
             ? 'border-blue-500 text-blue-600' 
             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
           class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
@@ -272,7 +272,7 @@
     </div>
 
     <!-- Tab Content -->
-    <div [ngSwitch]="activeTab">
+    <div [ngSwitch]="activeTab()">
       <div *ngSwitchCase="'tasks'">
         <app-tasks></app-tasks>
       </div>
