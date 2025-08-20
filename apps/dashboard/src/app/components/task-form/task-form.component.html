@@ -1,0 +1,111 @@
+<div class="task-form-container">
+  <form [formGroup]="taskForm" (ngSubmit)="onSubmit()" class="task-form">
+    <div class="form-header">
+      <h3>{{ task ? 'Edit Task' : 'Create New Task' }}</h3>
+    </div>
+
+    <div class="form-group">
+      <label for="title" class="form-label">Title *</label>
+      <input
+        type="text"
+        id="title"
+        formControlName="title"
+        class="form-input"
+        placeholder="Enter task title"
+        [class.error]="taskForm.get('title')?.invalid && taskForm.get('title')?.touched"
+      />
+      <div *ngIf="taskForm.get('title')?.invalid && taskForm.get('title')?.touched" class="error-message">
+        <span *ngIf="taskForm.get('title')?.errors?.['required']">Title is required</span>
+        <span *ngIf="taskForm.get('title')?.errors?.['minlength']">Title must be at least 1 character</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="description" class="form-label">Description</label>
+      <textarea
+        id="description"
+        formControlName="description"
+        class="form-textarea"
+        placeholder="Enter task description (optional)"
+        rows="3"
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="category" class="form-label">Category *</label>
+      <select
+        id="category"
+        formControlName="category"
+        class="form-select"
+        [class.error]="taskForm.get('category')?.invalid && taskForm.get('category')?.touched"
+      >
+        <option value="work">Work</option>
+        <option value="personal">Personal</option>
+        <option value="other">Other</option>
+      </select>
+      <div *ngIf="taskForm.get('category')?.invalid && taskForm.get('category')?.touched" class="error-message">
+        <span *ngIf="taskForm.get('category')?.errors?.['required']">Category is required</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="status" class="form-label">Status *</label>
+      <select
+        id="status"
+        formControlName="status"
+        class="form-select"
+        [class.error]="taskForm.get('status')?.invalid && taskForm.get('status')?.touched"
+      >
+        <option value="new">New</option>
+        <option value="in-progress">In Progress</option>
+        <option value="completed">Completed</option>
+      </select>
+      <div *ngIf="taskForm.get('status')?.invalid && taskForm.get('status')?.touched" class="error-message">
+        <span *ngIf="taskForm.get('status')?.errors?.['required']">Status is required</span>
+      </div>
+    </div>
+
+    <div class="form-group" *ngIf="isOwner || isAdmin">
+      <label for="assignedTo" class="form-label">Assign To</label>
+      <select
+        id="assignedTo"
+        formControlName="assignedTo"
+        class="form-select"
+      >
+        <option [value]="undefined">Select a user (optional)</option>
+        <option *ngFor="let user of users" [value]="user.id">
+          {{ getUserDisplayName(user) }}
+        </option>
+      </select>
+      <p class="text-xs text-gray-500 mt-1">Leave empty to assign to yourself</p>
+    </div>
+
+    <div class="form-group" *ngIf="isViewer">
+      <label class="form-label">Assigned To</label>
+      <p class="text-sm text-gray-600">
+        {{ task?.assignedTo ? 'Assigned to you' : 'Not assigned' }}
+      </p>
+    </div>
+
+    <div class="form-group checkbox-group">
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          formControlName="completed"
+          class="form-checkbox"
+        />
+        <span class="checkmark"></span>
+        Mark as completed
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" (click)="onCancel()" class="btn btn-secondary">
+        Cancel
+      </button>
+      <button type="submit" [disabled]="taskForm.invalid" class="btn btn-primary">
+        {{ task ? 'Update Task' : 'Create Task' }}
+      </button>
+    </div>
+  </form>
+</div>

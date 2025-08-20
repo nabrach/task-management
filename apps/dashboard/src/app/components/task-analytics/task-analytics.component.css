@@ -1,0 +1,18 @@
+.task-analytics {
+  min-height: 600px;
+}
+
+.task-analytics canvas {
+  max-height: 300px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .task-analytics {
+    padding: 1rem;
+  }
+  
+  .task-analytics canvas {
+    max-height: 250px;
+  }
+}

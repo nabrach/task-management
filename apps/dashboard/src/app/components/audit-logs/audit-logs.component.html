@@ -1,0 +1,208 @@
+<div class="container mx-auto px-4 py-6">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Audit Logs</h1>
+    <p class="text-gray-600">Track all user actions and changes within your organization</p>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label for="resourceFilter" class="block text-sm font-medium text-gray-700 mb-2">Resource Type</label>
+        <select 
+          id="resourceFilter" 
+          [(ngModel)]="selectedResource" 
+          (change)="onFilterChange()"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option *ngFor="let option of resourceOptions" [value]="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
+
+      <div>
+        <label for="actionFilter" class="block text-sm font-medium text-gray-700 mb-2">Action Type</label>
+        <select 
+          id="actionFilter" 
+          [(ngModel)]="selectedAction" 
+          (change)="onFilterChange()"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option *ngFor="let option of actionOptions" [value]="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
+
+      <div class="flex items-end">
+        <button 
+          (click)="loadLogs()" 
+          class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Refresh
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="flex justify-center items-center py-12">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    <div class="ml-4 text-gray-600">Loading audit logs...</div>
+  </div>
+  
+
+
+  <!-- Logs Table -->
+  <div *ngIf="!loading" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr *ngFor="let log of logs" class="hover:bg-gray-50">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <span class="text-2xl mr-2">{{ getActionIcon(log.action) }}</span>
+                <span class="text-sm font-medium {{ getActionColor(log.action) }}">
+                  {{ log.action | titlecase }}
+                </span>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <span class="text-xl mr-2">{{ getResourceIcon(log.resource) }}</span>
+                <span class="text-sm text-gray-900">{{ log.resource | titlecase }}</span>
+                <span class="text-xs text-gray-500 ml-1">#{{ log.resourceId }}</span>
+              </div>
+            </td>
+            <td class="px-6 py-4">
+              <div class="text-sm text-gray-900 max-w-xs truncate" [title]="log.description">
+                {{ log.description }}
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">
+                {{ getUserDisplayName(log.user) }}
+              </div>
+              <div class="text-xs text-gray-500">{{ log.user?.role | titlecase }}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {{ formatDate(log.createdAt) }}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <button 
+                *ngIf="log.changes" 
+                class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                (click)="showChanges(log)"
+              >
+                View Changes
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="logs.length === 0" class="text-center py-12">
+      <div class="text-gray-400 text-6xl mb-4">📝</div>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">No audit logs found</h3>
+      <p class="text-gray-500">There are no audit logs matching your current filters.</p>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div *ngIf="!loading && logs.length > 0" class="mt-6 flex items-center justify-between">
+    <div class="text-sm text-gray-700">
+      Showing {{ (currentPage - 1) * pageSize + 1 }} to {{ Math.min(currentPage * pageSize, totalLogs) }} of {{ totalLogs }} results
+    </div>
+    
+    <div class="flex space-x-2">
+      <button 
+        *ngIf="currentPage > 1"
+        (click)="onPageChange(currentPage - 1)"
+        class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+      >
+        Previous
+      </button>
+      
+      <ng-container *ngFor="let page of getPageNumbers()">
+        <button 
+          (click)="onPageChange(page)"
+          [class]="page === currentPage 
+            ? 'px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md' 
+            : 'px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50'"
+        >
+          {{ page }}
+        </button>
+      </ng-container>
+      
+      <button 
+        *ngIf="currentPage < getTotalPages()"
+        (click)="onPageChange(currentPage + 1)"
+        class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Changes Modal -->
+<div *ngIf="selectedLog" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+  <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+    <div class="mt-3">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Changes Details</h3>
+      <div class="text-sm text-gray-600 mb-4">
+        <strong>Action:</strong> {{ selectedLog.action | titlecase }}<br>
+        <strong>Resource:</strong> {{ selectedLog.resource | titlecase }} #{{ selectedLog.resourceId }}<br>
+        <strong>Description:</strong> {{ selectedLog.description }}
+      </div>
+      
+      <div *ngIf="selectedLog.changes" class="space-y-4">
+        <div *ngIf="selectedLog.changes.before && selectedLog.changes.after">
+          <h4 class="font-medium text-gray-900 mb-2">Changes Made:</h4>
+          <div class="bg-gray-50 p-3 rounded-md">
+            <div *ngFor="let field of selectedLog.changes.updatedFields" class="mb-2">
+              <div class="font-medium text-gray-700">{{ field | titlecase }}:</div>
+              <div class="text-sm text-gray-600">
+                <span class="line-through text-red-600">{{ selectedLog.changes.before[field] }}</span>
+                <span class="mx-2">→</span>
+                <span class="text-green-600">{{ selectedLog.changes.after[field] }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div *ngIf="selectedLog.changes.task">
+          <h4 class="font-medium text-gray-900 mb-2">Task Details:</h4>
+          <pre class="bg-gray-50 p-3 rounded-md text-xs overflow-auto">{{ selectedLog.changes.task | json }}</pre>
+        </div>
+        
+        <div *ngIf="selectedLog.changes.deletedTask">
+          <h4 class="font-medium text-gray-900 mb-2">Deleted Task:</h4>
+          <pre class="bg-gray-50 p-3 rounded-md text-xs overflow-auto">{{ selectedLog.changes.deletedTask | json }}</pre>
+        </div>
+      </div>
+      
+      <div class="mt-6 flex justify-end">
+        <button 
+          (click)="selectedLog = null"
+          class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
