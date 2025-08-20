@@ -24,15 +24,15 @@ export class TasksComponent implements OnInit, AfterViewInit {
   
   // Computed values for categorized tasks
   public todoTasks = computed(() => 
-    this.filterTasksByUser(this.tasks()).filter(task => task.status === 'new')
+    this.filterTasksByUser(this.tasks()).filter((task: TaskWithUsers) => task.status === 'new')
   );
   
   public inProgressTasks = computed(() => 
-    this.filterTasksByUser(this.tasks()).filter(task => task.status === 'in-progress')
+    this.filterTasksByUser(this.tasks()).filter((task: TaskWithUsers) => task.status === 'in-progress')
   );
   
   public doneTasks = computed(() => 
-    this.filterTasksByUser(this.tasks()).filter(task => task.status === 'completed')
+    this.filterTasksByUser(this.tasks()).filter((task: TaskWithUsers) => task.status === 'completed')
   );
   
   // UI state signals
@@ -54,19 +54,19 @@ export class TasksComponent implements OnInit, AfterViewInit {
     
     // Apply category filter
     if (this.selectedCategory()) {
-      tasks = tasks.filter(task => task.category === this.selectedCategory());
+      tasks = tasks.filter((task: TaskWithUsers) => task.category === this.selectedCategory());
     }
     
     // Apply status filter
     if (this.selectedStatus()) {
-      tasks = tasks.filter(task => task.status === this.selectedStatus());
+      tasks = tasks.filter((task: TaskWithUsers) => task.status === this.selectedStatus());
     }
     
     // Apply sorting
     const sortBy = this.sortBy();
     const sortOrder = this.sortOrder();
     
-    tasks.sort((a, b) => {
+    tasks.sort((a: TaskWithUsers, b: TaskWithUsers) => {
       let aValue = a[sortBy as keyof TaskWithUsers];
       let bValue = b[sortBy as keyof TaskWithUsers];
       
@@ -128,11 +128,11 @@ export class TasksComponent implements OnInit, AfterViewInit {
     if (user?.organizationId) {
       console.log('Loading users for organization:', user.organizationId);
       this.usersService.getUsersByOrganization(user.organizationId).subscribe({
-        next: (users) => {
+        next: (users: IUser[]) => {
           console.log('Users loaded:', users);
           this.users.set(users);
         },
-        error: (error) => {
+        error: (error: any) => {
           console.error('Error loading users:', error);
           this.error.set('Failed to load users. Please try again.');
         }
@@ -140,11 +140,11 @@ export class TasksComponent implements OnInit, AfterViewInit {
     } else {
       console.log('Loading users for default organization: 1');
       this.usersService.getUsersByOrganization(1).subscribe({
-        next: (users) => {
+        next: (users: IUser[]) => {
           console.log('Users loaded for default organization:', users);
           this.users.set(users);
         },
-        error: (error) => {
+        error: (error: any) => {
           console.error('Error loading users for default organization:', error);
           this.error.set('Failed to load users. Please try again.');
         }
@@ -236,16 +236,16 @@ export class TasksComponent implements OnInit, AfterViewInit {
     
     if (this.isOwner() || this.isAdmin()) {
       // Owner and Admin see all tasks in their organization
-      return tasks.filter(task => (task.organizationId || 1) === (user.organizationId || 1));
+      return tasks.filter((task: Task) => (task.organizationId || 1) === (user.organizationId || 1));
     } else if (this.isViewer()) {
       // Viewers see tasks they created or are assigned to
-      return tasks.filter(task => 
+      return tasks.filter((task: Task) => 
         (task.createdBy || 0) === user.id || 
         (task.assignedTo || 0) === user.id
       );
     } else {
       // Regular users see tasks they created or are assigned to
-      return tasks.filter(task => 
+      return tasks.filter((task: Task) => 
         (task.createdBy || 0) === user.id || 
         (task.assignedTo || 0) === user.id
       );
@@ -259,12 +259,12 @@ export class TasksComponent implements OnInit, AfterViewInit {
     this.error.set(null);
     
     this.tasksService.getTasks().subscribe({
-      next: (tasks) => {
+      next: (tasks: TaskWithUsers[]) => {
         console.log('TasksComponent: Tasks loaded successfully:', tasks);
         this.tasks.set(tasks);
         this.isLoading.set(false);
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('TasksComponent: Error loading tasks:', error);
         this.error.set('Failed to load tasks. Please try again.');
         this.isLoading.set(false);
@@ -322,12 +322,12 @@ export class TasksComponent implements OnInit, AfterViewInit {
 
   private updateTaskStatus(taskId: number, newStatus: 'new' | 'in-progress' | 'completed', updateData: UpdateTaskDto) {
     this.tasksService.updateTask(taskId, updateData).subscribe({
-      next: (updatedTask) => {
+      next: (updatedTask: TaskWithUsers) => {
         console.log('Task status updated successfully:', updatedTask);
         
         // Update the task in the main tasks array
-        this.tasks.update(tasks => {
-          const index = tasks.findIndex(t => t.id === updatedTask.id);
+        this.tasks.update((tasks: TaskWithUsers[]) => {
+          const index = tasks.findIndex((t: TaskWithUsers) => t.id === updatedTask.id);
           if (index !== -1) {
             const newTasks = [...tasks];
             newTasks[index] = updatedTask;
@@ -336,7 +336,7 @@ export class TasksComponent implements OnInit, AfterViewInit {
           return tasks;
         });
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('Error updating task status:', error);
         this.error.set('Failed to update task status. Please try again.');
       }
@@ -383,12 +383,12 @@ export class TasksComponent implements OnInit, AfterViewInit {
       }
       
       this.tasksService.updateTask(editingTask.id, taskData as UpdateTaskDto).subscribe({
-        next: (updatedTask) => {
+        next: (updatedTask: TaskWithUsers) => {
           console.log('TasksComponent: Task updated successfully:', updatedTask);
           
           // Update the task in the main tasks array
-          this.tasks.update(tasks => {
-            const index = tasks.findIndex(t => t.id === updatedTask.id);
+          this.tasks.update((tasks: TaskWithUsers[]) => {
+            const index = tasks.findIndex((t: TaskWithUsers) => t.id === updatedTask.id);
             if (index !== -1) {
               const newTasks = [...tasks];
               newTasks[index] = updatedTask;
@@ -400,7 +400,7 @@ export class TasksComponent implements OnInit, AfterViewInit {
           this.hideForm();
           this.error.set(null);
         },
-        error: (error) => {
+        error: (error: any) => {
           console.error('TasksComponent: Error updating task:', error);
           this.error.set('Failed to update task. Please try again.');
         }
@@ -422,18 +422,18 @@ export class TasksComponent implements OnInit, AfterViewInit {
       }
       
       this.tasksService.createTask(newTaskData).subscribe({
-        next: (newTask) => {
+        next: (newTask: TaskWithUsers) => {
           console.log('TasksComponent: Task created successfully:', newTask);
           
           // Add the new task to the tasks array
-          this.tasks.update(tasks => [newTask, ...tasks]);
+          this.tasks.update((tasks: TaskWithUsers[]) => [newTask, ...tasks]);
           
           console.log('TasksComponent: New task added to arrays. Total tasks:', this.tasks().length);
           
           this.hideForm();
           this.error.set(null);
         },
-        error: (error) => {
+        error: (error: any) => {
           console.error('TasksComponent: Error creating task:', error);
           this.error.set('Failed to create task. Please try again.');
         }
@@ -448,11 +448,11 @@ export class TasksComponent implements OnInit, AfterViewInit {
           console.log('TasksComponent: Task deleted successfully');
           
           // Remove the task from the tasks array
-          this.tasks.update(tasks => tasks.filter(t => t.id !== taskId));
+          this.tasks.update((tasks: TaskWithUsers[]) => tasks.filter((t: TaskWithUsers) => t.id !== taskId));
           
           this.error.set(null);
         },
-        error: (error) => {
+        error: (error: any) => {
           console.error('TasksComponent: Error deleting task:', error);
           this.error.set('Failed to delete task. Please try again.');
         }
@@ -469,12 +469,12 @@ export class TasksComponent implements OnInit, AfterViewInit {
     };
     
     this.tasksService.updateTask(task.id, updateData).subscribe({
-      next: (updatedTask) => {
+      next: (updatedTask: TaskWithUsers) => {
         console.log('Task completion updated successfully:', updatedTask);
         
         // Update the task in the main tasks array
-        this.tasks.update(tasks => {
-          const index = tasks.findIndex(t => t.id === updatedTask.id);
+        this.tasks.update((tasks: TaskWithUsers[]) => {
+          const index = tasks.findIndex((t: TaskWithUsers) => t.id === updatedTask.id);
           if (index !== -1) {
             const newTasks = [...tasks];
             newTasks[index] = updatedTask;
@@ -485,7 +485,7 @@ export class TasksComponent implements OnInit, AfterViewInit {
         
         this.error.set(null);
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('Error updating task completion:', error);
         this.error.set('Failed to update task completion. Please try again.');
       }
@@ -503,7 +503,7 @@ export class TasksComponent implements OnInit, AfterViewInit {
   }
 
   toggleAnalytics() {
-    this.showAnalytics.update(current => !current);
+    this.showAnalytics.update((current: boolean) => !current);
   }
 
   clearError() {

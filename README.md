@@ -10,6 +10,7 @@ A full-stack task management application built with Angular frontend and NestJS 
 - [Access Control Implementation](#access-control-implementation)
 - [API Documentation](#api-documentation)
 - [Future Considerations](#future-considerations)
+- [Mac Troubleshooting](#mac-troubleshooting)
 
 ## Setup Instructions
 
@@ -17,6 +18,8 @@ A full-stack task management application built with Angular frontend and NestJS 
 
 - Node.js (v18 or higher)
 - npm or yarn package manager
+
+**Note for Mac Users**: The application includes platform-specific Rollup dependencies that will automatically install the correct version for your Mac (Intel or Apple Silicon). If you encounter any issues, see the [Mac Troubleshooting](#mac-troubleshooting) section below.
 
 ### Installation
 
@@ -504,6 +507,72 @@ nx lint               # Lint all applications
 3. Write tests for new features
 4. Update documentation for API changes
 5. Follow conventional commit messages
+
+## Mac Troubleshooting
+
+### Platform-Specific Dependencies
+
+This application automatically handles platform-specific dependencies for different operating systems, including macOS. The following packages are included as optional dependencies:
+
+- `@rollup/rollup-darwin-arm64` - For Apple Silicon Macs (M1/M2/M3)
+- `@rollup/rollup-darwin-x64` - For Intel Macs
+- `@rollup/rollup-linux-x64` - For Linux systems
+- `@rollup/rollup-win32-x64` - For Windows systems
+
+### Common Mac Installation Issues
+
+**Issue**: `@rollup/rollup-darwin-arm64` installation fails
+**Solution**: This package is now included as an optional dependency and will automatically install the correct version for your Mac architecture.
+
+**Issue**: Angular build fails with Rollup-related errors
+**Solution**: 
+1. Clear npm cache: `npm cache clean --force`
+2. Delete node_modules: `rm -rf node_modules package-lock.json`
+3. Reinstall: `npm install`
+
+**Issue**: Permission errors during installation
+**Solution**: 
+1. Use `sudo npm install` (not recommended for production)
+2. Or fix npm permissions: `sudo chown -R $USER:$GROUP ~/.npm`
+
+### Mac-Specific Setup Commands
+
+```bash
+# For Apple Silicon Macs (M1/M2/M3)
+arch -arm64 npm install
+
+# For Intel Macs
+arch -x86_64 npm install
+
+# Check your Mac architecture
+uname -m
+# Returns: arm64 (Apple Silicon) or x86_64 (Intel)
+```
+
+### Alternative Installation Methods
+
+If you continue to experience issues, try these alternatives:
+
+1. **Use Yarn instead of npm**:
+   ```bash
+   npm install -g yarn
+   yarn install
+   ```
+
+2. **Use Node Version Manager (nvm)**:
+   ```bash
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+   nvm install stable
+   nvm use stable
+   npm install
+   ```
+
+3. **Clear all caches and reinstall**:
+   ```bash
+   npm cache clean --force
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
 
 ## License
 
