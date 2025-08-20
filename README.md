@@ -21,6 +21,16 @@ A full-stack task management application built with Angular frontend and NestJS 
 
 **Note for Mac Users**: The application includes platform-specific Rollup dependencies that will automatically install the correct version for your Mac (Intel or Apple Silicon). If you encounter any issues, see the [Mac Troubleshooting](#mac-troubleshooting) section below.
 
+### Existing User Accounts
+
+For quick testing and demonstration purposes, the following user accounts are pre-configured:
+
+- **Email**: `john.smith@corporation.com` / **Password**: `abc123`
+- **Email**: `sam.smith@corporation.com` / **Password**: `abc123`  
+- **Email**: `billy.madison@business.com` / **Password**: `abc123`
+
+**Note**: You can also create your own accounts using the registration feature if you prefer to use custom credentials.
+
 ### Installation
 
 1. **Clone the repository**
